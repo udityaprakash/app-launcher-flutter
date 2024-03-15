@@ -98,7 +98,7 @@ Future<dynamic> input(BuildContext context, TextEditingController controller) {
                           color: const Color.fromARGB(255, 255, 255, 255),
                           fontFamily: 'code'),
                          border: InputBorder.none,
-                          hintText: 'Promt here...',
+                          hintText: 'Prompt here...',
                           hintStyle: TextStyle(
                             color: const Color.fromARGB(185, 255, 255, 255),
                             fontFamily: 'code',
