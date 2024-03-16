@@ -1,5 +1,9 @@
+import 'dart:developer';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MyApp());
@@ -27,7 +31,26 @@ class waterlesshomepage extends StatefulWidget {
 
 class _waterlesshomepageState extends State<waterlesshomepage> {
   TextEditingController controller = TextEditingController();
+  List<Application>? apps;
+  bool exitui = false;
   @override
+  void initState() {
+    super.initState();
+    _getapps();
+  }
+
+  void _getapps() async {
+    List<Application> applist = await DeviceApps.getInstalledApplications(
+      includeAppIcons: true,
+      includeSystemApps: true,
+      onlyAppsWithLaunchIntent: true,
+    );
+    setState(() {
+      apps = applist;
+      log(apps!.length.toString());
+    });
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 44, 47, 54),
@@ -44,103 +67,93 @@ class _waterlesshomepageState extends State<waterlesshomepage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                exitui = !exitui;
+              });
+              SystemNavigator.pop();
+            },
+            icon: Icon(
+              exitui ? Icons.exit_to_app : Icons.exit_to_app_outlined,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[],
-        ),
+      body: PopScope(
+        canPop: exitui,
+        child: Container(
+            child: apps != null
+                ? GridView.count(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 10,
+                    physics: BouncingScrollPhysics(),
+                    children:
+                        List.generate(apps != null ? apps!.length : 0, (index) {
+                      log("app details here : " +
+                          apps![index].appName.toString());
+                      return GestureDetector(
+                        child: Container(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              iconcontainer(index, apps),
+                              SizedBox(
+                                height: 10,
+                              ),
+                              Text(
+                                apps![index].appName,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            ],
+                          ),
+                        ),
+                        onTap: () {
+                          DeviceApps.openApp(apps![index].packageName);
+                        },
+                      );
+                    }),
+                  )
+                : Center(
+                    child: CircularProgressIndicator(
+                      // backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+                      color: Color.fromARGB(255, 255, 255, 255),
+                    ),
+                  )),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await input(context, controller);
-          
-        },
-        child: const Icon(
-          Icons.terminal,
-          color: Colors.white,
-          size: 30,
-        ),
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: () {
+      //     _getapps();
+      //   },
+      //   child: Icon(Icons.refresh),
+      // ),
     );
   }
 }
 
-Future<dynamic> input(BuildContext context, TextEditingController controller) {
-  controller.clear();
-  return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-            shadowColor: Color.fromARGB(255, 44, 47, 54),
-            child: Container(
-            decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(5),
-            color: Color.fromARGB(255, 44, 47, 54),
-            ),
-            height: 200,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(40),
-                    color: Color.fromARGB(255, 0, 0, 0),
-                    ),
-                    child: TextField(
-                      controller: controller,                    
-                      decoration: InputDecoration(
-                        helperStyle: TextStyle(
-                          color: const Color.fromARGB(255, 255, 255, 255),
-                          fontFamily: 'code'),
-                         border: InputBorder.none,
-                          hintText: 'Prompt here...',
-                          hintStyle: TextStyle(
-                            color: const Color.fromARGB(185, 255, 255, 255),
-                            fontFamily: 'code',
-                          ),
-                          
-                          prefixIcon: Icon(Icons.arrow_forward_ios,
-                          color: const Color.fromARGB(185, 255, 255, 255),
-                          size: 30,
-                          ),
-                        ),
-                        
-                        cursorColor: Colors.transparent,
-                        style: TextStyle(
-                          color: const Color.fromARGB(255, 255, 255, 255),
-                          // backgroundColor: const Color.fromARGB(255, 44, 47, 54),
-                          
-                        ),
-                        cursorWidth: 2.0,
-                        cursorRadius: Radius.circular(1.0),
-                        showCursor: true,
-                        autofocus: true,
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Icon(
-                      Icons.keyboard_return,
-                      // Icons.keyboard_option_key,
-                      color: const Color.fromARGB(185, 255, 255, 255),
-                      size: 30,
-                    ),
-                    // color: const Color(0xFF1BC0C5),
-                  )
-                ],
-              ),
-            ),
-          ),
-        );
-      });
+iconcontainer(index, apps) {
+  try {
+    return CircleAvatar(
+      radius: 25,
+      backgroundImage: MemoryImage(
+          apps[index].icon != null ? apps[index].icon : Uint8List(0)),
+      // child: Image.memory(
+      //     apps[index].icon != null ? apps[index].icon : Uint8List(0),
+      //     height: 50,
+      //     width: 50),
+    );
+  } catch (e) {
+    return Container(
+      height: 50,
+      width: 50,
+      color: Colors.white,
+    );
+  }
 }
