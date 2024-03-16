@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
+import 'package:flutter/widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
@@ -34,16 +35,22 @@ class _waterlesshomepageState extends State<waterlesshomepage> {
   TextEditingController controller = TextEditingController();
   bool? accessstorage;
   var installedapps;
-  var homecontent;
+  List<Widget> homecontent = [];
   @override
   void getInstalledApps() async {
     installedapps = await DeviceApps.getInstalledApplications(
-      // includeAppIcons: true,
+      includeAppIcons: true,
       includeSystemApps: true,
-      onlyAppsWithLaunchIntent: false,
+      onlyAppsWithLaunchIntent: true,
     );
     setState(() {
-      homecontent = installedapps.length.toString() + ' apps installed';
+      homecontent.add(
+        ListTile(
+          contentPadding: EdgeInsets.all(0.0),
+          leading: const Icon(Icons.keyboard_double_arrow_right),
+          title: Text(installedapps.length.toString() + ' apps installed',overflow: TextOverflow.visible,),
+        )
+        );
     });
   }
 
@@ -90,43 +97,64 @@ class _waterlesshomepageState extends State<waterlesshomepage> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text(homecontent.toString()),
-            ],
-          ),
+      body: Center(
+        child: ListView.builder(
+          itemCount: homecontent.length,
+          scrollDirection: Axis.vertical,
+          itemBuilder: homecontent.length == 0
+              ? (BuildContext context, int index) {
+                  return Text('Loading...');
+                }
+              : (BuildContext context, int index) {
+                  return homecontent[index];
+                },
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await input(context, controller);
-          if(controller.text.length != 0){
-              log(controller.text);
-
-              List<String> splitted_input = controller.text.split(" ");
-              List<dynamic> Availableoptions;
-              if (splitted_input[0] == 'o') {
-                Availableoptions = installedapps;
-                List<String> appname = [];
-                Availableoptions.forEach((element) {
-                  appname.add(element.appName.toString().toLowerCase());
-                });
-                log(appname.toString());
-                var indexes =
-                    findIndexesOfSimilarSubstring(splitted_input[1], appname);
-                if (indexes.length >= 1) {
-                  DeviceApps.openApp(Availableoptions[indexes[0]].packageName);
-                } else {
-                  var snackBar = SnackBar(content: Text('No such app found'));
-                  ScaffoldMessenger.of(context).showSnackBar(snackBar);
-                }
+          if (controller.text.length != 0) {
+            log(controller.text);
+            homecontent.add(
+              ListTile(
+                    leading: const Icon(Icons.keyboard_double_arrow_right),
+                    contentPadding: EdgeInsets.all(0.0),
+                    title: Text(controller.text,overflow: TextOverflow.visible,),
+              )
+              );
+              setState(() {
+                homecontent = homecontent;
+              });
+            List<String> splitted_input = controller.text.split(" ");
+            List<dynamic> Availableoptions;
+            if (splitted_input[0] == 'o') {
+              Availableoptions = installedapps;
+              List<String> appname = [];
+              Availableoptions.forEach((element) {
+                appname.add(element.appName.toString().toLowerCase());
+              });
+              log(appname.toString());
+              var indexes =
+                  findIndexesOfSimilarSubstring(splitted_input[1], appname);
+              if (indexes.length >= 1) {
+                DeviceApps.openApp(Availableoptions[indexes[0]].packageName);
               } else {
-                Availableoptions =
-                    await cmd(splitted_input[0], installedapps: installedapps);
+                setState(() {
+                  homecontent.add(
+                    Padding(
+                      padding: const EdgeInsets.only(left: 5.0),
+                      child: Text('No such app found',overflow: TextOverflow.visible,),
+                    ),
+                    
+                    );
+                });
+                // var snackBar = SnackBar(content: Text('No such app found'));
+                // ScaffoldMessenger.of(context).showSnackBar(snackBar);
               }
+            } else {
+              Availableoptions =
+                  await cmd(splitted_input[0], installedapps: installedapps);
+            }
           }
         },
         child: const Icon(
@@ -201,7 +229,7 @@ Future<dynamic> input(BuildContext context, TextEditingController controller) {
                       Navigator.pop(context);
                     },
                     child: const Icon(
-                      Icons.keyboard_return,
+                      Icons.keyboard_command_key,
                       // Icons.keyboard_option_key,
                       color: const Color.fromARGB(185, 255, 255, 255),
                       size: 30,
@@ -229,6 +257,7 @@ Future<List<dynamic>> cmd(String cmd, {installedapps}) async {
       out = apps;
       break;
     case 'o':
+      
       out = installedapps;
       break;
     case 'exit':
