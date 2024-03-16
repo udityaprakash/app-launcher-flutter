@@ -2,14 +2,16 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-List<String> cmdoptions = ['o', 'l', 'exit', 'clear', 'b', 'i'];
+var installedapps;
+List<Widget> homecontent = [];
+bool popui = false;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -33,9 +35,8 @@ class waterlesshomepage extends StatefulWidget {
 
 class _waterlesshomepageState extends State<waterlesshomepage> {
   TextEditingController controller = TextEditingController();
-  bool? accessstorage;
-  var installedapps;
-  List<Widget> homecontent = [];
+
+  // List<Widget> homecontent = [];
   @override
   void getInstalledApps() async {
     installedapps = await DeviceApps.getInstalledApplications(
@@ -44,70 +45,50 @@ class _waterlesshomepageState extends State<waterlesshomepage> {
       onlyAppsWithLaunchIntent: true,
     );
     setState(() {
-      homecontent.add(
-        ListTile(
-          contentPadding: EdgeInsets.all(0.0),
-          leading: const Icon(Icons.keyboard_double_arrow_right),
-          title: Text(installedapps.length.toString() + ' apps installed',overflow: TextOverflow.visible,),
-        )
-        );
+      homecontent.add(ListTile(
+        contentPadding: EdgeInsets.all(0.0),
+        leading: const Icon(Icons.keyboard_double_arrow_right),
+        title: Text(
+          installedapps.length.toString() + ' apps Found in Device',
+          overflow: TextOverflow.visible,
+          style: TextStyle(
+            color: const Color.fromARGB(255, 255, 255, 255),
+            fontFamily: 'code',
+          ),
+        ),
+      ));
     });
   }
 
   void initState() {
-    accessstorage = false;
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
     getInstalledApps();
-    // installedapps =
-    handlepermissions().then((value) => {accessstorage = value});
-  }
-
-  Future<bool?> handlepermissions() async {
-    PermissionStatus storagepermissionstatus = await _getpermissionsatus();
-    if (storagepermissionstatus == PermissionStatus.granted) {
-      return true;
-    } else {
-      _getpermissionsatus();
-    }
-  }
-
-  Future<PermissionStatus> _getpermissionsatus() async {
-    PermissionStatus status = await Permission.storage.status;
-    if (status != PermissionStatus.granted ||
-        status != PermissionStatus.denied) {
-      status = await Permission.storage.request();
-    }
-    return status ?? PermissionStatus.denied;
   }
 
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 44, 47, 54),
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-        title: Text(
-          'WATERLESS',
-          style: TextStyle(
-            color: const Color.fromARGB(255, 252, 252, 252),
-            fontSize: 20,
-            fontFamily: 'code',
-            letterSpacing: 5.0,
-            // wordSpacing: 0.1,
+      body: PopScope(
+        canPop: popui,
+        child: SafeArea(
+          
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Center(
+              child: ListView.builder(
+                itemCount: homecontent.length,
+                scrollDirection: Axis.vertical,
+                itemBuilder: homecontent.length == 0
+                    ? (BuildContext context, int index) {
+                        return Text('Loading...');
+                      }
+                    : (BuildContext context, int index) {
+                        return homecontent[index];
+                      },
+              ),
+            ),
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: ListView.builder(
-          itemCount: homecontent.length,
-          scrollDirection: Axis.vertical,
-          itemBuilder: homecontent.length == 0
-              ? (BuildContext context, int index) {
-                  return Text('Loading...');
-                }
-              : (BuildContext context, int index) {
-                  return homecontent[index];
-                },
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -115,46 +96,26 @@ class _waterlesshomepageState extends State<waterlesshomepage> {
           await input(context, controller);
           if (controller.text.length != 0) {
             log(controller.text);
-            homecontent.add(
-              ListTile(
-                    leading: const Icon(Icons.keyboard_double_arrow_right),
-                    contentPadding: EdgeInsets.all(0.0),
-                    title: Text(controller.text,overflow: TextOverflow.visible,),
-              )
-              );
-              setState(() {
-                homecontent = homecontent;
-              });
+            homecontent.add(ListTile(
+              leading: const Icon(Icons.keyboard_double_arrow_right),
+              contentPadding: EdgeInsets.all(0.0),
+              title: Text(
+                controller.text,
+                style: TextStyle(
+                  color: const Color.fromARGB(255, 255, 255, 255),
+                  fontFamily: 'code',
+                ),
+                overflow: TextOverflow.visible,
+              ),
+            ));
+            setState(() {
+              homecontent = homecontent;
+            });
             List<String> splitted_input = controller.text.split(" ");
-            List<dynamic> Availableoptions;
-            if (splitted_input[0] == 'o') {
-              Availableoptions = installedapps;
-              List<String> appname = [];
-              Availableoptions.forEach((element) {
-                appname.add(element.appName.toString().toLowerCase());
-              });
-              log(appname.toString());
-              var indexes =
-                  findIndexesOfSimilarSubstring(splitted_input[1], appname);
-              if (indexes.length >= 1) {
-                DeviceApps.openApp(Availableoptions[indexes[0]].packageName);
-              } else {
-                setState(() {
-                  homecontent.add(
-                    Padding(
-                      padding: const EdgeInsets.only(left: 5.0),
-                      child: Text('No such app found',overflow: TextOverflow.visible,),
-                    ),
-                    
-                    );
-                });
-                // var snackBar = SnackBar(content: Text('No such app found'));
-                // ScaffoldMessenger.of(context).showSnackBar(snackBar);
-              }
-            } else {
-              Availableoptions =
-                  await cmd(splitted_input[0], installedapps: installedapps);
-            }
+            await cmd(
+              splitted_input,
+            );
+            setState(() {});
           }
         },
         child: const Icon(
@@ -244,33 +205,91 @@ Future<dynamic> input(BuildContext context, TextEditingController controller) {
       });
 }
 
-Future<List<dynamic>> cmd(String cmd, {installedapps}) async {
+Future<void> cmd(dynamic cmd) async {
   List<dynamic> out = [];
-  if (cmdoptions.contains(cmd) == false) return [];
-  switch (cmd) {
+  var msg = '';
+  bool terminal_icon_required = false;
+  List<String> appname = [];
+  switch (cmd[0]) {
     case 'l':
-      List<Application> apps = await DeviceApps.getInstalledApplications(
-        includeAppIcons: true,
-        includeSystemApps: true,
-        onlyAppsWithLaunchIntent: true,
-      );
-      out = apps;
-      break;
-    case 'o':
-      
+      installedapps.forEach((element) {
+        appname.add(element.appName.toString().toLowerCase());
+      });
+      // log("appnames list : " + appname.toString());
+      var indexes = findIndexesOfSimilarSubstring(cmd[1], appname);
+      if (indexes.length >= 1) {
+        msg = 'opening ' + installedapps[indexes[0]].toString();
+        DeviceApps.openApp(installedapps[indexes[0]].packageName);
+      } else {
+        msg = 'No such app found';
+        // var snackBar = SnackBar(content: Text('No such app found'));
+        // ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      }
       out = installedapps;
       break;
     case 'exit':
+      popui = true;
+      if (popui) {
+        SystemNavigator.pop();
+      } else {
+        msg =
+            'Cannot exit as it is your default launcher try changing it first...';
+      }
       break;
     case 'clear':
+      homecontent = [];
+      msg = 'console Cleared...';
       break;
+    case 'set':
+      try {
+        cmd[1] = cmd[2].toLowerCase();
+      } catch (e) {
+        msg = 'Invalid set command';
+      }
+      break;
+    case 'ls':
+      switch (cmd[1] ?? '-1') {
+        case '-a':
+          msg = 'ls command \n' + installedapps.toString();
+          break;
+        case '-1':
+          msg = appname.toString().toLowerCase();
+          break;
+        default:
+          msg = 'Invalid ls command';
 
-    case 'i':
+          // msg = appname.toString().toLowerCase();
+          break;
+      }
+      break;
+    case 'help':
+      msg = 'l <appname> : open app\n'
+          'exit : exit this terminal launcher \n'
+          'clear : clear console\n'
+          'set <key> <value> : set values within app\n'
+          'ls : list apps\n'
+          'ls -a : list apps with detailed view\n'
+          'help : show help';
       break;
     default:
-      return [];
+      msg = 'Invalid terminal cammand';
+      break;
   }
-  return out;
+  homecontent.add(ListTile(
+    contentPadding: EdgeInsets.all(0.0),
+    leading:
+        terminal_icon_required ? Icon(Icons.keyboard_double_arrow_right) : null,
+    title: Text(
+      msg,
+      overflow: TextOverflow.visible,
+      style: TextStyle(
+        color: Color.fromARGB(255, 255, 244, 85),
+        fontFamily: 'code',
+      ),
+    ),
+  ));
+
+  // return out;
 }
 
 List<int> findIndexesOfSimilarSubstring(String input, List<String> strings) {
